@@ -6,8 +6,10 @@
 
 typedef struct libepiterm_pty
 {
+  int is_hypo;
   void* user_data;
   int master;
+  /* Order of the above is important. */
   int slave;
   char* tty;
   pid_t pid;

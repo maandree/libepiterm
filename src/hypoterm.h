@@ -5,8 +5,10 @@
 
 typedef struct libepiterm_hypoterm
 {
+  int is_hypo;
   void* user_data;
   int in;
+  /* Order of the above is important. */
   int out;
   struct termios saved_termios;
   

@@ -12,6 +12,7 @@ int libepiterm_initialise(libepiterm_hypoterm_t* restrict hypoterm, int hypoin, 
   struct termios termios;
   int sttyed = 0;
   
+  hypoterm->is_hypo = 1;
   hypoterm->in = hypoin;
   hypoterm->out = hypoout;
   hypoterm->user_data = NULL;

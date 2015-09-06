@@ -69,6 +69,7 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
   struct termios termios_;
   struct winsize winsize_;
   
+  pty->is_hypo = 0;
   pty->master = -1;
   pty->slave = -1;
   pty->tty = NULL;
