@@ -7,11 +7,14 @@
 PREFIX = /usr
 LIB = /lib
 DATA = /share
+INCLUDE = /include
 LIBDIR = $(PREFIX)$(LIB)
 DATADIR = $(PREFIX)$(DATA)
+INCLUDEDIR = $(PREFIX)$(INCLUDE)
 DOCDIR = $(DATADIR)/doc
 INFODIR = $(DATADIR)/info
 LICENSEDIR = $(DATADIR)/licenses
+PKGCONFIGDIR = $(LIBDIR)/pkgconfig
 
 PKGNAME = libepiterm
 
@@ -46,6 +49,12 @@ EXT_CFLAGS =
 LIB_OBJ = hypoterm loop overlay pty shell
 
 
+
+.PHONY: default
+default: base
+
+.PHONY: base
+base: lib
 
 .PHONY: all
 all: lib test
@@ -102,7 +111,70 @@ bin/test.o: src/test.c src/libepiterm/*.h src/*.h
 	@mkdir -p obj
 	$(CC) $(FLAGS) -Isrc -c -o $@ $< $(EXT_CFLAGS) $(CPPFLAGS) $(CFLAGS)
 
+.PHONY: install
+install: install-base
+
+.PHONY: install-all
+install-all: install-base
+
+.PHONY: install-base
+install-base: install-lib install-copyright
+
+.PHONY: install-lib
+install-lib: install-h install-so install-a install-pc
+
+.PHONY: install-copyright
+install-copyright: install-copying install-license
+
+.PHONY: install-h
+install-h:
+	install -dm755 -- "$(DESTDIR)$(INCLUDEDIR)"
+	install -dm755 -- "$(DESTDIR)$(INCLUDEDIR)/libepiterm"
+	install -m644 -- src/libepiterm.h "$(DESTDIR)$(INCLUDEDIR)/libepiterm.h"
+	$(foreach H,$(LIB_OBJ),install -m644 -- src/libepiterm/$(H).h "$(DESTDIR)$(INCLUDEDIR)/libepiterm/$(H).h" &&) true
+
+.PHONY: install-so
+install-so: bin/libepiterm.so.$(LIB_VERSION)
+	install -dm755 -- "$(DESTDIR)$(LIBDIR)"
+	install -m755 bin/libepiterm.so.$(LIB_VERSION) -- "$(DESTDIR)$(LIBDIR)/libepiterm.so.$(LIB_VERSION)"
+	ln -sf libepiterm.so.$(LIB_VERSION) -- "$(DESTDIR)$(LIBDIR)/libepiterm.so.$(LIB_MAJOR)"
+	ln -sf libepiterm.so.$(LIB_VERSION) -- "$(DESTDIR)$(LIBDIR)/libepiterm.so"
+
+.PHONY: install-a
+install-a: bin/libepiterm.a
+	install -dm755 -- "$(DESTDIR)$(LIBDIR)"
+	install -m644 bin/libepiterm.a -- "$(DESTDIR)$(LIBDIR)/libepiterm.a"
+
+.PHONY: install-pc
+install-pc: bin/libepiterm.pc
+	install -dm755 -- "$(DESTDIR)$(PKGCONFIGDIR)"
+	install -m644 bin/libepiterm.pc -- "$(DESTDIR)$(PKGCONFIGDIR)/libepiterm.pc"
+
+.PHONY: install-copying
+install-copying:
+	install -dm755 -- "$(DESTDIR)$(LICENSEDIR)/$(PKGNAME)"
+	install -m644 COPYING -- "$(DESTDIR)$(LICENSEDIR)/$(PKGNAME)/COPYING"
+
+.PHONY: install-license
+install-license:
+	install -dm755 -- "$(DESTDIR)$(LICENSEDIR)/$(PKGNAME)"
+	install -m644 LICENSE -- "$(DESTDIR)$(LICENSEDIR)/$(PKGNAME)/LICENSE"
+
+.PHONY: uninstall
+uninstall:
+	-rm -- "$(DESTDIR)$(INCLUDEDIR)/libepiterm.h"
+	-rm -- $(foreach H,$(LIB_OBJ),"$(DESTDIR)$(INCLUDEDIR)/libepiterm/$(H).h")
+	-rmdir -- "$(DESTDIR)$(INCLUDEDIR)/libepiterm"
+	-rm -- "$(DESTDIR)$(LIBDIR)/libepiterm.so.$(LIB_VERSION)"
+	-rm -- "$(DESTDIR)$(LIBDIR)/libepiterm.so.$(LIB_MAJOR)"
+	-rm -- "$(DESTDIR)$(LIBDIR)/libepiterm.so"
+	-rm -- "$(DESTDIR)$(LIBDIR)/libepiterm.a"
+	-rm -- "$(DESTDIR)$(PKGCONFIGDIR)/libepiterm.pc"
+	-rm -- "$(DESTDIR)$(LICENSEDIR)/$(PKGNAME)/COPYING"
+	-rm -- "$(DESTDIR)$(LICENSEDIR)/$(PKGNAME)/LICENSE"
+	-rmdir -- "$(DESTDIR)$(LICENSEDIR)/$(PKGNAME)"
+
 .PHONY: clean
 clean:
-	-rm -rf -- obj bin
+	-rm -rf obj bin
 
