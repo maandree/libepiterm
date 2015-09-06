@@ -1,0 +1,24 @@
+RUNTIME DEPENDENCIES:
+
+	glibc
+	libutempter
+	linux
+
+
+BUILD DEPENDENCIES:
+
+	glibc
+	gcc
+	libutempter
+	linux-api-headers
+	make
+	coreutils
+	binutils
+	sed
+
+
+INSTALL DEPENDENCIES:
+
+	make
+	coreutils
+
