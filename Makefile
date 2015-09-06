@@ -40,14 +40,18 @@ STD = c99
 FLAGS = -std=$(STD) $(OPTIMISE) $(WARN) $(FFLAGS)
 
 
+EXT_LIBS = -lutempter
+EXT_CFLAGS =
+
 LIB_OBJ = hypoterm loop overlay pty shell
+
 
 
 .PHONY: all
 all: lib test
 
 .PHONY: lib
-lib: so a
+lib: so a pc
 
 .PHONY: so
 so: bin/libepiterm.so.$(LIB_VERSION) bin/libepiterm.so.$(LIB_MAJOR) bin/libepiterm.so
@@ -55,16 +59,19 @@ so: bin/libepiterm.so.$(LIB_VERSION) bin/libepiterm.so.$(LIB_MAJOR) bin/libepite
 .PHONY: a
 a: bin/libepiterm.a
 
+.PHONY: pc
+pc: bin/libepiterm.pc
+
 .PHONY: test
 test: bin/test
 
 obj/libepiterm/%.o: src/libepiterm/%.c src/libepiterm/*.h src/libepiterm.h
 	@mkdir -p obj/libepiterm/
-	$(CC) $(FLAGS) -fPIC -c -o $@ $< $(CPPFLAGS) $(CFLAGS)
+	$(CC) $(FLAGS) -fPIC -c -o $@ $< $(EXT_CFLAGS) $(CPPFLAGS) $(CFLAGS)
 
 bin/libepiterm.so.$(LIB_VERSION): $(foreach O,$(LIB_OBJ),obj/libepiterm/$(O).o)
 	@mkdir -p bin
-	$(CC) $(FLAGS) $(LDOPTIMISE) -shared -Wl,-soname,libepiterm.so.$(LIB_MAJOR) -o $@ $^ -lutempter $(LDFLAGS)
+	$(CC) $(FLAGS) $(LDOPTIMISE) -shared -Wl,-soname,libepiterm.so.$(LIB_MAJOR) -o $@ $^ $(EXT_LIBS) $(LDFLAGS)
 
 bin/libepiterm.so.$(LIB_MAJOR):
 	@mkdir -p bin
@@ -78,13 +85,22 @@ bin/libepiterm.a: $(foreach O,$(LIB_OBJ),obj/libepiterm/$(O).o)
 	@mkdir -p bin
 	ar rcs $@ $^
 
+bin/libepiterm.pc: src/libepiterm.pc.in
+	@mkdir -p bin
+	cp $< $@
+	sed -i 's:@LIBDIR@:$(LIBDIR):g' $@
+	sed -i 's:@INCLUDEDIR@:$(INCLUDEDIR):g' $@
+	sed -i 's:@VERSION@:$(LIB_VERSION):g' $@
+	sed -i 's:@LIBS@:$(EXT_LIBS):g' $@
+	sed -i 's:@CLAGS@:$(EXT_CFLAGS):g' $@
+
 bin/test: bin/test.o
 	@mkdir -p bin
-	$(CC) $(FLAGS) -o $@ $^ -Lbin -lepiterm -lutempter $(CPPFLAGS) $(CFLAGS)
+	$(CC) $(FLAGS) -o $@ $^ -Lbin -lepiterm $(EXT_LIBS) $(CPPFLAGS) $(CFLAGS)
 
 bin/test.o: src/test.c src/libepiterm/*.h src/*.h
 	@mkdir -p obj
-	$(CC) $(FLAGS) -Isrc -c -o $@ $< $(CPPFLAGS) $(CFLAGS)
+	$(CC) $(FLAGS) -Isrc -c -o $@ $< $(EXT_CFLAGS) $(CPPFLAGS) $(CFLAGS)
 
 .PHONY: clean
 clean:

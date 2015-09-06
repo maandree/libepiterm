@@ -1,0 +1,9 @@
+libdir=@LIBDIR@
+includedir=@INCLUDEDIR@
+
+Name: libepiterm
+Description: Library for epiterminals
+Version: @VERSION@
+Libs: -L${libdir} -lepiterm @LIBS@
+Cflags: -I${includedir} @CFLAGS@
+
