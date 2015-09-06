@@ -26,6 +26,19 @@
 
 
 
+/**
+ * Figure out what shell shall be started
+ * 
+ * @param   free_this  Ouput parameter for a pointer that
+ *                     the caller shall free once the returned
+ *                     string is no longer needed
+ * @return             The shell, do not free this, it may
+ *                     be statically allocated (in which case
+ *                     `*free_this == NULL`), `NULL` is returned
+ *                     on failure and `errno` is set to indicate
+ *                     the error, additionally, on error
+ *                     `*free_this` is guaranteed to be `NULL`
+ */
 const char* libepiterm_get_shell(char** restrict free_this)
 {
   struct passwd pw_;
@@ -38,6 +51,7 @@ const char* libepiterm_get_shell(char** restrict free_this)
   
   *free_this = NULL;
   
+  /* Did $SHELL not contain a valid shell, read /etc/passwd. */
   if ((shell == NULL) || (access(shell, X_OK) < 0))
     {
     retry:
@@ -53,6 +67,9 @@ const char* libepiterm_get_shell(char** restrict free_this)
       if (pw)
 	shell = pw->pw_shell;
     }
+  
+  /* Did /etc/passwd not specify a shell (perhaps the user
+     has been removed,) fall back to /bin/sh. */
   if (shell == NULL)
     shell = "/bin/sh", free(*free_this), *free_this = NULL;
   

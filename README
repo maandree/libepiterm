@@ -2,6 +2,6 @@ This library provide the basics for creating epiterminals[1].
 
 
 [1] Programs like tmux and screen are a type of epiterminals
-    known as terminal multiplexers. Any psuedo-terminal run
+    known as terminal multiplexers. Any pseudo-terminal run
     from inside another terminal is an epiterminals.
 

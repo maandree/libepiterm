@@ -17,9 +17,33 @@
 #ifndef LIBEPITERM_MACROS_H
 #define LIBEPITERM_MACROS_H
 
+
+/* This macro is used internally, it is not installed. */
+
+
+
+/**
+ * Go to `fail` if the given expression evaluates to non-zero
+ * 
+ * @param  ...  The expression, may contain the sequence operator
+ */
 #define fail_if(...)      do if ((__VA_ARGS__)) goto fail; while(0)
+
+/**
+ * Go to `fail` if the given expression evaluates to zero
+ * 
+ * @param  ...  The expression, may contain the sequence operator
+ */
 #define fail_unless(...)  fail_if (!(__VA_ARGS__))
+
+/**
+ * Go to `fail` if the given expression evaluates to a negative value
+ * 
+ * @param  ...  The expression, may contain the sequence operator
+ */
 #define try(...)          fail_if ((__VA_ARGS__) < 0);
+
+
 
 #endif
 

@@ -25,6 +25,12 @@
 #include <errno.h>
 
 
+
+/**
+ * Wrapper around `ioctl` to handle the fact that
+ * request constants have to wrong type and we are
+ * compiling with tranditional convertion.
+ */
 #define ioctl(a, b, c)  ((ioctl)((a), (unsigned long)(b), (c)))
 
 
