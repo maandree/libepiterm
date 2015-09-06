@@ -1,5 +1,5 @@
-#include "macros.h"
-#include "overlay.h"
+#include <libepiterm.h>
+#include "libepiterm/macros.h"
 
 #include <stdio.h>
 
