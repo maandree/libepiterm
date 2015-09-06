@@ -1,3 +1,4 @@
+#define _POSIX_SOURCE
 #include "shell.h"
 #include "macros.h"
 
@@ -5,16 +6,17 @@
 #include <errno.h>
 #include <pwd.h>
 #include <unistd.h>
+#include <sys/types.h>
 
 
 
-char* libepiterm_get_shell(char** restrict free_this)
+const char* libepiterm_get_shell(char** restrict free_this)
 {
   struct passwd pw_;
   struct passwd* pw;
-  char* shell = getenv("SHELL");
+  const char* shell = getenv("SHELL");
   char* new;
-  int uid = getuid();
+  uid_t uid = getuid();
   size_t bufsize = 64;
   int saved_errno;
   

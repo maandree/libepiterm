@@ -11,6 +11,8 @@
 #include <utempter.h> /* -lutempter */
 
 
+#define ioctl(a, b, c)  ((ioctl)((a), (unsigned long)(b), (c)))
+
 
 static ssize_t uninterrupted_write(int fd, void* buffer, size_t size)
 {
@@ -62,7 +64,7 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
 {
   int r, n, saved_errno;
   char* new;
-  char* utmp_record;
+  char* utmp_record = NULL;
   size_t bufsize = 8;
   ssize_t got;
   int pipe_rw[2];

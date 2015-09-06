@@ -18,15 +18,17 @@ static volatile sig_atomic_t chlded = 0;
 
 
 
-static void sigwinch()
+static void sigwinch(int signo)
 {
   winched = 1;
+  (void) signo;
 }
 
 
-static void sigchld()
+static void sigchld(int signo)
 {
   chlded = 1;
+  (void) signo;
 }
 
 
@@ -80,7 +82,7 @@ int libepiterm_loop(libepiterm_term_t** restrict terms, size_t termn,
   for (i = 0; i < termn; i++)
     {
       try (events->data.ptr = terms[i], epoll_ctl(epoll_fd, EPOLL_CTL_ADD, terms[i]->epi.master, events));
-      epin += 1 - terms[i]->is_hypo;
+      epin += (size_t)(1 - terms[i]->is_hypo);
     }
   
   sigemptyset(&sigset);

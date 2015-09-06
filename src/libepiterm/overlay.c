@@ -9,6 +9,8 @@
 #include <errno.h>
 
 
+#define ioctl(a, b, c)  ((ioctl)((a), (unsigned long)(b), (c)))
+
 
 static libepiterm_pty_t pty;
 static libepiterm_hypoterm_t hypo;
@@ -32,10 +34,10 @@ static int winch_callback(void)
 }
 
 
-static int wait_callback(libepiterm_pty_t* restrict pty, int status)
+static int wait_callback(libepiterm_pty_t* restrict epiterm, int status)
 {
   return 0;
-  (void) pty, (void) status;
+  (void) epiterm, (void) status;
 }
 
 
@@ -52,7 +54,7 @@ int libepiterm_121(const char* shell, char* (*get_record_name)(libepiterm_pty_t*
 				      char** restrict write_buffer, size_t* restrict write_size))
 {
   int have_pty = 0, have_hypo = 0, saved_errno;
-  libepiterm_term_t* terms[2];
+  void* terms[2];
   char* free_this = NULL;
   
   io_subcallback = io_callback;
@@ -68,9 +70,10 @@ int libepiterm_121(const char* shell, char* (*get_record_name)(libepiterm_pty_t*
   hypo.user_data = (void*)(intptr_t)(pty.master);
   pty.user_data = (void*)(intptr_t)(hypo.out);
   
-  terms[0] = (libepiterm_term_t*)&hypo;
-  terms[1] = (libepiterm_term_t*)&pty;
-  try (libepiterm_loop(terms, 2, io_supercallback, winch_callback, wait_callback));
+  terms[0] = &hypo;
+  terms[1] = &pty;
+  try (libepiterm_loop((libepiterm_term_t**)terms, (size_t)2,
+		       io_supercallback, winch_callback, wait_callback));
   
   libepiterm_pty_close(&pty);
   libepiterm_restore(&hypo);

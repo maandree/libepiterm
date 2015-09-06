@@ -3,16 +3,17 @@
 
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <limits.h>
 
 typedef struct libepiterm_pty
 {
   int is_hypo;
-  void* user_data;
   int master;
+  void* user_data;
   /* Order of the above is important. */
   int slave;
-  char* tty;
   pid_t pid;
+  char* tty;
   
 } libepiterm_pty_t;
 
