@@ -9,6 +9,7 @@
 #include <limits.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/wait.h>
 
 
 
@@ -55,10 +56,11 @@ int libepiterm_loop(libepiterm_term_t** restrict terms, size_t termn,
 		    int (*io_callback)(libepiterm_term_t* restrict read_term, char* read_buffer,
 				       size_t read_size, int* restrict write_fd,
 				       char** restrict write_buffer, size_t* restrict write_size),
-		    int (*winch_callback)(void))
+		    int (*winch_callback)(void),
+		    int (*wait_callback)(libepiterm_pty_t* restrict pty, int status))
 {
-  size_t i, length;
-  int fd, events_max, epoll_fd = -1;
+  size_t i, length, epin = 0;
+  int fd, events_max, epoll_fd = -1, status;
   struct epoll_event* events;
   struct sigaction action;
   libepiterm_term_t* event;
@@ -66,6 +68,7 @@ int libepiterm_loop(libepiterm_term_t** restrict terms, size_t termn,
   char* output;
   ssize_t n, got;
   sigset_t sigset;
+  pid_t pid;
   int saved_errno;
   
   events_max = termn > (size_t)INT_MAX ? INT_MAX : (int)termn;
@@ -75,7 +78,10 @@ int libepiterm_loop(libepiterm_term_t** restrict terms, size_t termn,
   events->events = EPOLLIN;
   try (epoll_fd = epoll_create1(0));
   for (i = 0; i < termn; i++)
-    try (events->data.ptr = terms[i], epoll_ctl(epoll_fd, EPOLL_CTL_ADD, terms[i]->pty.master, events));
+    {
+      try (events->data.ptr = terms[i], epoll_ctl(epoll_fd, EPOLL_CTL_ADD, terms[i]->epi.master, events));
+      epin += 1 - terms[i]->is_hypo;
+    }
   
   sigemptyset(&sigset);
   action.sa_handler = sigwinch;
@@ -89,13 +95,26 @@ int libepiterm_loop(libepiterm_term_t** restrict terms, size_t termn,
   action.sa_flags = 0;
   fail_if (sigaction(SIGCHLD, &action, NULL));
   
-  while (!chlded)
+  while (epin)
     {
       if (winched)
 	{
 	  winched = 0;
 	  try (winch_callback());
 	}
+      if (chlded)
+	for (chlded = 0, i = 0; i < termn; i++)
+	  if (terms[i]->is_hypo == 0)
+	    {
+	      try (pid = (pid_t)TEMP_FAILURE_RETRY(waitpid(terms[i]->epi.pid, &status,
+							   WNOHANG | WUNTRACED | WCONTINUED)));
+	      if (pid == 0)  continue;
+	      fail_if (pid != terms[i]->epi.pid);
+	      try (wait_callback(&(terms[i]->epi), status));
+	      memmove(terms + i, terms + i + 1, --termn - i), i--, epin--;
+	      terms[termn] = NULL;
+	      goto done;
+	    }
       
       n = (ssize_t)epoll_wait(epoll_fd, events, events_max, -1);
       if ((n < 0) && (errno == EINTR))
@@ -113,6 +132,7 @@ int libepiterm_loop(libepiterm_term_t** restrict terms, size_t termn,
 	}
     }
   
+ done:
   close(epoll_fd);
   return 0;
  fail:

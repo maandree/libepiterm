@@ -2,14 +2,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <string.h>
 #include <errno.h>
-#include <stdint.h>
 
 #include "macros.h"
 #include "shell.h"
-#include "hypoterm.h"
-#include "pty.h"
 #include "loop.h"
 
 
@@ -45,9 +41,16 @@ static int winch_callback(void)
 }
 
 
+static int wait_callback(libepiterm_pty_t* restrict pty, int status)
+{
+  return 0;
+  (void) pty, (void) status;
+}
+
+
 int main(void)
 {
-  int have_pty = 0, have_hypo = 0;
+  int have_pty = 0, have_hypo = 0, saved_errno;
   libepiterm_term_t* terms[2];
   char* free_this = NULL;
   const char* shell;
@@ -65,17 +68,19 @@ int main(void)
   
   terms[0] = (libepiterm_term_t*)&hypo;
   terms[1] = (libepiterm_term_t*)&pty;
-  try (libepiterm_loop(terms, 2, io_callback, winch_callback));
+  try (libepiterm_loop(terms, 2, io_callback, winch_callback, wait_callback));
   
   libepiterm_pty_close(&pty);
   libepiterm_restore(&hypo);
   return 0;
   
  fail:
-  fprintf(stderr, "%s\r\n", strerror(errno));
+  saved_errno = errno;
   free(free_this);
   if (have_pty)       libepiterm_pty_close(&pty);
   if (have_hypo)      libepiterm_restore(&hypo);
+  errno = saved_errno;
+  perror("libepiterm");
   return 1;
 }
 
