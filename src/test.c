@@ -53,7 +53,7 @@ int main(void)
   ssize_t got;
   struct sigaction action;
   
-  fail_if (libepiterm_intialise(&hypo, STDIN_FILENO, STDOUT_FILENO));
+  fail_if (LIBEPITERM_INITIALISE(&hypo));
   have_hypo = 1;
   
   fail_unless (shell = libepiterm_get_shell(&free_this));
@@ -94,7 +94,7 @@ int main(void)
 	}
       if (FD_ISSET(hypo.in, &fds))
 	{
-	  fail_if (got = read(STDIN_FILENO, buffer, sizeof(buffer)), got <= 0);
+	  fail_if (got = read(hypo.in, buffer, sizeof(buffer)), got <= 0);
 	  fail_if (write(pty.master, buffer, (size_t)got) < 0);
 	}
     }

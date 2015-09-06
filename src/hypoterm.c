@@ -7,13 +7,14 @@
 
 
 
-int libepiterm_intialise(libepiterm_hypoterm_t* restrict hypoterm, int hypoin, int hypoout)
+int libepiterm_initialise(libepiterm_hypoterm_t* restrict hypoterm, int hypoin, int hypoout)
 {
   struct termios termios;
   int sttyed = 0;
   
   hypoterm->in = hypoin;
   hypoterm->out = hypoout;
+  hypoterm->user_data = NULL;
   
   fail_if (TEMP_FAILURE_RETRY(tcgetattr(hypoin, &termios)));
   hypoterm->saved_termios = termios;

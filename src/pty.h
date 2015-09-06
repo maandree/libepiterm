@@ -10,6 +10,7 @@ typedef struct libepiterm_pty
   int slave;
   char* tty;
   pid_t pid;
+  void* user_data;
   
 } libepiterm_pty_t;
 
