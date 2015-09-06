@@ -1,5 +1,4 @@
 #define _XOPEN_SOURCE  700
-#define _GNU_SOURCE
 #define _DEFAULT_SOURCE
 #include <stdlib.h>
 #include <signal.h>
@@ -9,14 +8,13 @@
 #include <termios.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/select.h>
-#include <inttypes.h>
 #include <string.h>
 #include <errno.h>
+#include <utempter.h> /* -lutempter */
 
 
 
-#define t(...)  if (called = #__VA_ARGS__, __VA_ARGS__) goto fail
+#define t(...)  do if (called = #__VA_ARGS__, __VA_ARGS__) goto fail; while (0)
 static const char* called = NULL;
 
 
@@ -48,7 +46,7 @@ static void copy_winsize(int whither, int whence)
 
 int main(void)
 {
-  int master, slave, sttyed = 0, r;
+  int master, slave, sttyed = 0, r, n;
   const char* slavename;
   struct sigaction action;
   sigset_t sigset;
@@ -75,7 +73,11 @@ int main(void)
   t (grantpt(master));
   t (unlockpt(master));
   t (slavename = ptsname(master), slavename == NULL);
-  t (slave = open(slavename, O_RDONLY | O_NOCTTY), slave < 0);
+  t (slave = open(slavename, O_RDWR | O_NOCTTY), slave < 0);
+  
+  t (pid = fork(), pid < 0);
+  if (pid == 0)
+    goto child;
   
   t (tcgetattr(STDIN_FILENO, &termios));
   t (tcsetattr(master, TCSANOW, &termios));
@@ -97,9 +99,7 @@ int main(void)
   action.sa_flags = 0;
   t (sigaction(SIGCHLD, &action, NULL));
   
-  t (pid = fork(), pid < 0);
-  if (pid == 0)
-    goto child;
+  t (!utempter_add_record(master, "libepiterm"));
   
   while (!chlded)
     {
@@ -110,10 +110,10 @@ int main(void)
 	}
       
       FD_ZERO(&fds);
-      FD_SET(master, &fds);
       FD_SET(STDIN_FILENO, &fds);
+      FD_SET(master, &fds);
       
-      t (r = select(2, &fds, NULL, NULL, NULL), r < 0);
+      t (r = select(master + 1, &fds, NULL, NULL, NULL), r < 0);
       
       if (FD_ISSET(master, &fds))
 	{
@@ -134,31 +134,15 @@ int main(void)
 #undef t
 #define t(...)  if (called = #__VA_ARGS__, __VA_ARGS__) goto cfail
  child:
-  for (r = 0; r < 1024; r++)
+  for (r = 0, n = getdtablesize(); r < n; r++)
     if ((r != slave) && (r != 64))
       close(r);
-  if (slave != 0)
-    {
-      t (dup2(slave, STDIN_FILENO));
-      t (close(slave));
-    }
-  t (r = open(slavename, O_WRONLY), r < 0);
-  if (r != STDOUT_FILENO)
-    {
-      t (dup2(r, STDOUT_FILENO));
-      t (close(r));
-    }
-  t (r = open(slavename, O_WRONLY), r < 0);
-  if (r != STDERR_FILENO)
-    {
-      t (dup2(r, STDERR_FILENO));
-      t (close(r));
-    }
-  /* t (setsid() < 0);                      */
-  /* t (ioctl(STDIN_FILENO, TIOCSCTTY, 0)); */
-  close(2);
-  dup2(64, 2);
-  close(64);
+  t (setsid() < 0);
+  t (ioctl(slave, TIOCSCTTY, 0));
+  t ((slave != STDIN_FILENO) && dup2(slave, STDIN_FILENO) < 0);
+  t ((slave != STDIN_FILENO) && close(slave));
+  t (dup2(STDIN_FILENO, STDOUT_FILENO) < 0);
+  t (dup2(STDIN_FILENO, STDERR_FILENO) < 0);
   execl(shell, shell, NULL);
  cfail:
   dprintf(64, "%s: %s: %s\r\n", shell, called, strerror(errno));
