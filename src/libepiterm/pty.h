@@ -3,6 +3,7 @@
 
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <limits.h>
 
 typedef struct libepiterm_pty

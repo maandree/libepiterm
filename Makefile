@@ -15,6 +15,10 @@ LICENSEDIR = $(DATADIR)/licenses
 
 PKGNAME = libepiterm
 
+LIB_MAJOR = 1
+LIB_MINOR = 0
+LIB_VERSION = $(LIB_MAJOR).$(LIB_MINOR)
+
 
 OPTIMISE = -Og -g
 
@@ -36,13 +40,51 @@ STD = c99
 FLAGS = -std=$(STD) $(OPTIMISE) $(WARN) $(FFLAGS)
 
 
+LIB_OBJ = hypoterm loop overlay pty shell
+
+
 .PHONY: all
-all: $(foreach O,hypoterm loop overlay pty shell,obj/libepiterm/$(O).o)
+all: lib test
 
-obj/libepiterm/%.o: src/libepiterm/%.c src/libepiterm/*.h
+.PHONY: lib
+lib: so a
+
+.PHONY: so
+so: bin/libepiterm.so.$(LIB_VERSION) bin/libepiterm.so.$(LIB_MAJOR) bin/libepiterm.so
+
+.PHONY: a
+a: bin/libepiterm.a
+
+.PHONY: test
+test: bin/test
+
+obj/libepiterm/%.o: src/libepiterm/%.c src/libepiterm/*.h src/libepiterm.h
 	@mkdir -p obj/libepiterm/
-	$(CC) $(FLAGS) -c -o $@ $< $(CPPFLAGS) $(CFLAGS)
+	$(CC) $(FLAGS) -fPIC -c -o $@ $< $(CPPFLAGS) $(CFLAGS)
 
+bin/libepiterm.so.$(LIB_VERSION): $(foreach O,$(LIB_OBJ),obj/libepiterm/$(O).o)
+	@mkdir -p bin
+	$(CC) $(FLAGS) $(LDOPTIMISE) -shared -Wl,-soname,libepiterm.so.$(LIB_MAJOR) -o $@ $^ -lutempter $(LDFLAGS)
+
+bin/libepiterm.so.$(LIB_MAJOR):
+	@mkdir -p bin
+	ln -sf libepiterm.so.$(LIB_VERSION) $@
+
+bin/libepiterm.so:
+	@mkdir -p bin
+	ln -sf libepiterm.so.$(LIB_VERSION) $@
+
+bin/libepiterm.a: $(foreach O,$(LIB_OBJ),obj/libepiterm/$(O).o)
+	@mkdir -p bin
+	ar rcs $@ $^
+
+bin/test: bin/test.o
+	@mkdir -p bin
+	$(CC) $(FLAGS) -o $@ $^ -Lbin -lepiterm -lutempter $(CPPFLAGS) $(CFLAGS)
+
+bin/test.o: src/test.c src/libepiterm/*.h src/*.h
+	@mkdir -p obj
+	$(CC) $(FLAGS) -Isrc -c -o $@ $< $(CPPFLAGS) $(CFLAGS)
 
 .PHONY: clean
 clean:

@@ -1,5 +1,5 @@
-#ifndef LIBEPITERM_HYPOTERM_H
-#define LIBEPITERM_HYPOTERM_H
+#ifndef LIBEPITERM_H
+#define LIBEPITERM_H
 
 #include <libepiterm/hypoterm.h>
 #include <libepiterm/loop.h>
