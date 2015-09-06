@@ -36,24 +36,14 @@ static volatile sig_atomic_t winched = 0;
 static volatile sig_atomic_t chlded = 0;
 
 
-static void sigwinch(int signo)
+static void sigwinch()
 {
   winched = 1;
-  (void) signo;
 }
 
-static void sigchld(int signo)
+static void sigchld()
 {
   chlded = 1;
-  (void) signo;
-}
-
-
-static void copy_winsize(int whither, int whence)
-{
-  struct winsize winsize;
-  ioctl(whence,  TIOCGWINSZ, &winsize);
-  ioctl(whither, TIOCSWINSZ, &winsize);
 }
 
 
@@ -61,6 +51,16 @@ static void copy_winsize(int whither, int whence)
 #define fail_unless(...)  fail_if (!(__VA_ARGS__))
 #define try(...)          fail_if ((__VA_ARGS__) < 0)
 
+
+static int copy_winsize(int whither, int whence)
+{
+  struct winsize winsize;
+  try (TEMP_FAILURE_RETRY(ioctl(whence,  TIOCGWINSZ, &winsize)));
+  try (TEMP_FAILURE_RETRY(ioctl(whither, TIOCSWINSZ, &winsize)));
+  return 0;
+ fail:
+  return -1;
+}
 
 
 char* libepiterm_get_shell(char** restrict free_this)
@@ -180,7 +180,7 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
       termios = &termios_;
       fail_if (tcgetattr(STDIN_FILENO, termios));
     }
-  fail_if (tcsetattr(pty->master, TCSANOW, termios));
+  fail_if (TEMP_FAILURE_RETRY(tcsetattr(pty->master, TCSANOW, termios)));
   
  retry_ptsname:
   fail_unless (new = realloc(pty->tty, bufsize <<= 1));
@@ -279,29 +279,68 @@ void libepiterm_pty_close(libepiterm_pty_t* restrict pty)
 }
 
 
+typedef struct libepiterm_hypoterm
+{
+  int in;
+  int out;
+  struct termios saved_termios;
+  
+} libepiterm_hypoterm_t;
+
+
+int libepiterm_intialise(libepiterm_hypoterm_t* restrict hypoterm, int hypoin, int hypoout)
+{
+  struct termios termios;
+  int sttyed = 0;
+  
+  hypoterm->in = hypoin;
+  hypoterm->out = hypoout;
+  
+  fail_if (TEMP_FAILURE_RETRY(tcgetattr(hypoin, &termios)));
+  hypoterm->saved_termios = termios;
+  cfmakeraw(&termios);
+  fail_if (TEMP_FAILURE_RETRY(tcsetattr(hypoin, TCSANOW, &termios)));
+  sttyed = 1;
+  
+  return 0;
+ fail:
+  if (sttyed)
+    TEMP_FAILURE_RETRY(tcsetattr(hypoin, TCSADRAIN, &(hypoterm->saved_termios)));
+  return -1;
+}
+
+
+int libepiterm_restore(libepiterm_hypoterm_t* restrict hypoterm)
+{
+  fail_if (TEMP_FAILURE_RETRY(tcsetattr(hypoterm->in, TCSADRAIN, &(hypoterm->saved_termios))));
+  
+  return 0;
+ fail:
+  return -1;
+}
+
+
 int main(void)
 {
+  int have_pty = 0, have_hypo = 0;
   libepiterm_pty_t pty;
-  int sttyed = 0, r;
-  struct sigaction action;
-  sigset_t sigset;
+  libepiterm_hypoterm_t hypo;
+  char* free_this = NULL;
   const char* shell;
-  struct termios termios;
-  struct termios saved_termios;
+  int r;
+  sigset_t sigset;
   fd_set fds;
   char buffer[1024];
   ssize_t got;
-  char* free_this = NULL;
+  struct sigaction action;
   
-  shell = libepiterm_get_shell(&free_this);
-  t (libepiterm_pty_create(&pty, 0, shell, NULL, NULL, NULL, NULL, NULL));
+  fail_if (libepiterm_intialise(&hypo, STDIN_FILENO, STDOUT_FILENO));
+  have_hypo = 1;
+  
+  fail_unless (shell = libepiterm_get_shell(&free_this));
+  fail_if (libepiterm_pty_create(&pty, 0, shell, NULL, NULL, NULL, &(hypo.saved_termios), NULL));
   free(free_this), free_this = NULL;
-  
-  t (tcgetattr(STDIN_FILENO, &termios));
-  saved_termios = termios;
-  cfmakeraw(&termios);
-  t (tcsetattr(STDIN_FILENO, TCSANOW, &termios));
-  sttyed = 1;
+  have_pty = 1;
   
   sigemptyset(&sigset);
   action.sa_handler = sigwinch;
@@ -320,7 +359,7 @@ int main(void)
       if (winched)
 	{
 	  winched = 0;
-	  copy_winsize(pty.master, STDIN_FILENO);
+	  try (copy_winsize(pty.master, STDIN_FILENO));
 	}
       
       FD_ZERO(&fds);
@@ -341,15 +380,15 @@ int main(void)
 	}
     }
   
-  t (tcsetattr(STDIN_FILENO, TCSADRAIN, &saved_termios));
   libepiterm_pty_close(&pty);
+  libepiterm_restore(&hypo);
   return 0;
   
  fail:
   fprintf(stderr, "%s: %s\r\n", called, strerror(errno));
   free(free_this);
-  if (sttyed)
-    tcsetattr(STDIN_FILENO, TCSADRAIN, &saved_termios);
+  if (have_pty)   libepiterm_pty_close(&pty);
+  if (have_hypo)  libepiterm_restore(&hypo);
   return 1;
 }
 
