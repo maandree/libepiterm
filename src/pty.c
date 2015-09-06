@@ -135,7 +135,7 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
   try (got = uninterrupted_read(pipe_rw[0], &saved_errno, sizeof(int)));
   if (got && ((size_t)got < sizeof(int)))
     fail_if ((errno = EPIPE));
-  fail_if ((errno = saved_errno));
+  fail_if (got && (errno = saved_errno));
   try (TEMP_FAILURE_RETRY(close(pipe_rw[0])));
   
   return 0;

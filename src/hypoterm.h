@@ -5,10 +5,10 @@
 
 typedef struct libepiterm_hypoterm
 {
+  void* user_data;
   int in;
   int out;
   struct termios saved_termios;
-  void* user_data;
   
 } libepiterm_hypoterm_t;
 

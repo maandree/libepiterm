@@ -6,11 +6,11 @@
 
 typedef struct libepiterm_pty
 {
+  void* user_data;
   int master;
   int slave;
   char* tty;
   pid_t pid;
-  void* user_data;
   
 } libepiterm_pty_t;
 
