@@ -25,6 +25,9 @@
 
 
 /**
+ * Create a 1-to-1 epiterminal, it is not possible create more than one
+ * if this function is used
+ * 
  * @param   shell            The pathname of the shell, `NULL` for automatic
  * @param   get_record_name  Callback function used to get the name of the login session, `NULL`
  *                           if a record in utmp shall not be created, the function will be passed
