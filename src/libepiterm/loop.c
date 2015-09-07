@@ -186,13 +186,16 @@ int libepiterm_loop(libepiterm_term_t** restrict terms, size_t termn,
 	    {
 	      try (pid = (pid_t)TEMP_FAILURE_RETRY(waitpid(terms[i]->epi.pid, &status,
 							   WNOHANG | WUNTRACED | WCONTINUED)));
-	      if (pid == 0)  continue;
+	      if (pid == 0)
+		continue;
 	      fail_if (pid != terms[i]->epi.pid);
 	      try (wait_callback(&(terms[i]->epi), status));
-	      /* TODO only unlist if the process died */
+	      if (WIFSTOPPED(status) || WIFCONTINUED(status))
+		continue;
 	      memmove(terms + i, terms + i + 1, --termn - i), i--, epin--;
 	      terms[termn] = NULL;
-	      goto done;
+	      if (epin == 0)
+		goto done;
 	    }
       
       /* Wait for input. */
