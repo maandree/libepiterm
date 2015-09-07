@@ -23,6 +23,15 @@
 
 
 
+/**
+ * Initialise a hypoterminal, this entails making it raw,
+ * and storing its file descriptors
+ * 
+ * @param   hypoterm  Output parameter for information on the hypoterminal
+ * @param   hypoin    The input file descriptor of the hypoterminal, this is probably `STDIN_FILENO`
+ * @param   hypoout   The output file descriptor of the hypoterminal, this is probably `STDOUT_FILENO`
+ * @return            Zero on success, -1 on error, on error `errno` is set to describe to error
+ */
 int libepiterm_initialise(libepiterm_hypoterm_t* restrict hypoterm, int hypoin, int hypoout)
 {
   struct termios termios;
@@ -47,6 +56,12 @@ int libepiterm_initialise(libepiterm_hypoterm_t* restrict hypoterm, int hypoin, 
 }
 
 
+/**
+ * Restore the original settings of the terminal
+ * 
+ * @param   hypoterm  Information on the hypoterminal
+ * @return            Zero on success, -1 on error, on error `errno` is set to describe to error
+ */
 int libepiterm_restore(libepiterm_hypoterm_t* restrict hypoterm)
 {
   fail_if (TEMP_FAILURE_RETRY(tcsetattr(hypoterm->in, TCSADRAIN, &(hypoterm->saved_termios))));

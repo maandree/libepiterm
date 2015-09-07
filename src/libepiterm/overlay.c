@@ -34,28 +34,50 @@
 #define ioctl(a, b, c)  ((ioctl)((a), (unsigned long)(b), (c)))
 
 
+
+/**
+ * The epiterminal
+ */
 static libepiterm_pty_t pty;
+
+/**
+ * The hypoterminal
+ */
 static libepiterm_hypoterm_t hypo;
+
+/**
+ * I/O callback function, as passed to `libepiterm_121`
+ */
 static int (*io_subcallback)(int from_epiterm, char* read_buffer, size_t read_size,
 			     char** restrict write_buffer, size_t* restrict write_size);
 
-static int copy_winsize(int whither, int whence)
+
+
+/**
+ * Callback function that is called when the hypoterminal changes size,
+ * it will copy the hypoterminal's new size to the epiterminal
+ * 
+ * @return  Zero on success, -1 on error, on error `errno` is set to describe to error
+ */
+static int winch_callback(void)
 {
   struct winsize winsize;
-  try (TEMP_FAILURE_RETRY(ioctl(whence,  TIOCGWINSZ, &winsize)));
-  try (TEMP_FAILURE_RETRY(ioctl(whither, TIOCSWINSZ, &winsize)));
+  try (TEMP_FAILURE_RETRY(ioctl(pty.master, TIOCGWINSZ, &winsize)));
+  try (TEMP_FAILURE_RETRY(ioctl(hypo.in,    TIOCSWINSZ, &winsize)));
   return 0;
  fail:
   return -1;
 }
 
 
-static int winch_callback(void)
-{
-  return copy_winsize(pty.master, hypo.in);
-}
-
-
+/**
+ * Callback function that is called when the epiterminal is terminated,
+ * stopped or continued
+ * 
+ * @param   epiterm  Information on the epiterminal
+ * @param   status   Status fetched by `waitpid`
+ * @return           This function is always success and thus returns zero
+ */
 static int wait_callback(libepiterm_pty_t* restrict epiterm, int status)
 {
   return 0;
@@ -63,6 +85,17 @@ static int wait_callback(libepiterm_pty_t* restrict epiterm, int status)
 }
 
 
+/**
+ * Wrapper for the I/O function
+ * 
+ * @param   read_term     The terminal that has pending input
+ * @param   read_buffer   Buffer with the input
+ * @param   read_size     The number of bytes stored in `read_buffer`
+ * @param   write_fd      Output parameter for the file descriptor of the output terminal
+ * @param   write_buffer  Output parameter for the buffer the function fills with data to write
+ * @param   write_size    Output parameter for the number of bytes to write
+ * @return                Zero on success, -1 on error, on error `errno` is set to describe to error
+ */
 static int io_supercallback(libepiterm_term_t* restrict read_term, char* read_buffer, size_t read_size,
 			    int* restrict write_fd, char** restrict write_buffer, size_t* restrict write_size)
 {
@@ -71,6 +104,21 @@ static int io_supercallback(libepiterm_term_t* restrict read_term, char* read_bu
 }
 
 
+/**
+ * @param   shell            The pathname of the shell, `NULL` for automatic
+ * @param   get_record_name  Callback function used to get the name of the login session, `NULL`
+ *                           if a record in utmp shall not be created, the function will be passed
+ *                           `pty`, which will be filled in, and the function shall follow the return
+ *                           semantics of this function
+ * @param   io_callback      This function is called on I/O-events, the arguments are:
+ *                           whether the input comes from the epiterminal (otherwise it comes from
+ *                           the hypoterminal,) a buffer of received input, the number of bytes of
+ *                           the received input, output parameter for a buffer (that will not be
+ *                           freed) with the data to write to the the other terminal, output parameter
+ *                           for the number of bytes to write to the other terminal, the function
+ *                           shall follow the return semantics of this function
+ * @return                   Zero on success, -1 on error, on error `errno` is set to describe to error
+ */
 int libepiterm_121(const char* shell, char* (*get_record_name)(libepiterm_pty_t* pty),
 		   int (*io_callback)(int from_epiterm, char* read_buffer, size_t read_size,
 				      char** restrict write_buffer, size_t* restrict write_size))

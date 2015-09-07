@@ -29,11 +29,23 @@
 
 
 
+/**
+ * Has the hypoterminal changed size?
+ */
 static volatile sig_atomic_t winched = 0;
+
+/**
+ * Has a child died?
+ */
 static volatile sig_atomic_t chlded = 0;
 
 
 
+/**
+ * Called when the hypoterminal change size
+ * 
+ * @param  signo  Will always be `SIGWINCH`
+ */
 static void sigwinch(int signo)
 {
   winched = 1;
@@ -41,6 +53,11 @@ static void sigwinch(int signo)
 }
 
 
+/**
+ * Called when a child dies
+ * 
+ * @param  signo  Will always be `SIGCHLD`
+ */
 static void sigchld(int signo)
 {
   chlded = 1;
@@ -48,6 +65,14 @@ static void sigchld(int signo)
 }
 
 
+/**
+ * Fully write a buffer to a file, and continue even if interrupted by a signal
+ * 
+ * @param   fd      The file descriptor of the file to write
+ * @param   buffer  The buffer with the data to write
+ * @param   size    The number of bytes to write from the beginning of the buffer to the file
+ * @return          Zero on success, -1 on error, on error `errno` is set to describe to error
+ */
 static ssize_t uninterrupted_write(int fd, void* buffer, size_t size)
 {
   ssize_t wrote;
@@ -70,6 +95,33 @@ static ssize_t uninterrupted_write(int fd, void* buffer, size_t size)
 
 
 
+/**
+ * A rather standard loop, that is not interrupted by signals,
+ * for epiterminals
+ * 
+ * This funcion will set up signal handlers for `SIGWINCH` and `SIGCHLD`
+ * 
+ * @param   terms           List of all hypo- and epiterminals, when an epiterminal is reaped,
+ *                          it will be unlisted, and all following elements will be shifted
+ *                          to remove the gap, the new gap at the end will be set to `NULL`
+ * @param   termn           The number of terminals in `terms`
+ * @param   io_callback     This function is called on I/O-events, the arguments are:
+ *                          the terminal whence input is read, a buffer of received input,
+ *                          the number of bytes of the received input, output parameter for
+ *                          the file descriptor of the terminal to which data shall be written,
+ *                          output parameter for a buffer (that will not be freed) with the
+ *                          data to write to the the other terminal, output parameter for the
+ *                          number of bytes to write to the other terminal, the function
+ *                          shall follow the return semantics of this function
+ * @param   winch_callback  This function is called with the hypoterminal changes size,
+ *                          it shall follow the return semantics of this function
+ * @param   wait_callback   This function is called when an epiterminal is closed,
+ *                          the first argument will the information, from `terms`, on the
+ *                          epiterminal that died, *or* was stopped or continued, the second
+ *                          argument is the status that `waitpid` returned, the function shall
+ *                          follow the return semantics of this function
+ * @return                  Zero on success, -1 on error, on error `errno` is set to describe to error
+ */
 int libepiterm_loop(libepiterm_term_t** restrict terms, size_t termn,
 		    int (*io_callback)(libepiterm_term_t* restrict read_term, char* read_buffer,
 				       size_t read_size, int* restrict write_fd,
@@ -89,9 +141,11 @@ int libepiterm_loop(libepiterm_term_t** restrict terms, size_t termn,
   pid_t pid;
   int saved_errno;
   
+  /* epoll cannot poll more than `INT_MAX` events. */
   events_max = termn > (size_t)INT_MAX ? INT_MAX : (int)termn;
   events = alloca((size_t)events_max * sizeof(struct epoll_event));
   
+  /* Set up epoll for I/O events. */
   memset(events, 0, sizeof(struct epoll_event));
   events->events = EPOLLIN;
   try (epoll_fd = epoll_create1(0));
@@ -101,25 +155,31 @@ int libepiterm_loop(libepiterm_term_t** restrict terms, size_t termn,
       epin += (size_t)(1 - terms[i]->is_hypo);
     }
   
+  /* Set up signal handler for detecting when the hypoterminal is resized. */
   sigemptyset(&sigset);
   action.sa_handler = sigwinch;
   action.sa_mask = sigset;
   action.sa_flags = 0;
   fail_if (sigaction(SIGWINCH, &action, NULL));
   
+  /* Set up signal handler for detecting when a child process dies, is stopped or is continue. */
   sigemptyset(&sigset);
   action.sa_handler = sigchld;
   action.sa_mask = sigset;
   action.sa_flags = 0;
   fail_if (sigaction(SIGCHLD, &action, NULL));
   
+  /* The loop. */
   while (epin)
     {
+      /* Has the hypoterminal changed size. */
       if (winched)
 	{
 	  winched = 0;
 	  try (winch_callback());
 	}
+      
+      /* Has a child dies, been stopped or been continued. */
       if (chlded)
 	for (chlded = 0, i = 0; i < termn; i++)
 	  if (terms[i]->is_hypo == 0)
@@ -129,16 +189,19 @@ int libepiterm_loop(libepiterm_term_t** restrict terms, size_t termn,
 	      if (pid == 0)  continue;
 	      fail_if (pid != terms[i]->epi.pid);
 	      try (wait_callback(&(terms[i]->epi), status));
+	      /* TODO only unlist if the process died */
 	      memmove(terms + i, terms + i + 1, --termn - i), i--, epin--;
 	      terms[termn] = NULL;
 	      goto done;
 	    }
       
+      /* Wait for input. */
       n = (ssize_t)epoll_wait(epoll_fd, events, events_max, -1);
       if ((n < 0) && (errno == EINTR))
 	continue;
       fail_if (n < 0);
       
+      /* Translate and transmit input. */
       while (n--)
 	{
 	  event = events[n].data.ptr;

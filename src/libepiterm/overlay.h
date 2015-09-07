@@ -17,12 +17,32 @@
 #ifndef LIBEPITERM_OVERLAY_H
 #define LIBEPITERM_OVERLAY_H
 
+
 #include "pty.h"
+
 #include <stddef.h>
 
+
+
+/**
+ * @param   shell            The pathname of the shell, `NULL` for automatic
+ * @param   get_record_name  Callback function used to get the name of the login session, `NULL`
+ *                           if a record in utmp shall not be created, the function will be passed
+ *                           `pty`, which will be filled in, and the function shall follow the return
+ *                           semantics of this function
+ * @param   io_callback      This function is called on I/O-events, the arguments are:
+ *                           whether the input comes from the epiterminal (otherwise it comes from
+ *                           the hypoterminal,) a buffer of received input, the number of bytes of
+ *                           the received input, output parameter for a buffer (that will not be
+ *                           freed) with the data to write to the the other terminal, output parameter
+ *                           for the number of bytes to write to the other terminal, the function
+ *                           shall follow the return semantics of this function
+ * @return                   Zero on success, -1 on error, on error `errno` is set to describe to error
+ */
 int libepiterm_121(const char* shell, char* (*get_record_name)(libepiterm_pty_t* pty),
 		   int (*io_callback)(int from_epiterm, char* read_buffer, size_t read_size,
 				      char** restrict write_buffer, size_t* restrict write_size));
+
 
 #endif
 
