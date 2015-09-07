@@ -108,10 +108,10 @@ static ssize_t uninterrupted_write(int fd, void* buffer, size_t size)
  * @param   io_callback     This function is called on I/O-events, the arguments are:
  *                          the terminal whence input is read, a buffer of received input,
  *                          the number of bytes of the received input, output parameter for
- *                          the file descriptor of the terminal to which data shall be written,
- *                          output parameter for a buffer (that will not be freed) with the
- *                          data to write to the the other terminal, output parameter for the
- *                          number of bytes to write to the other terminal, the function
+ *                          the file descriptor of the terminal to which data shall be written
+ *                          (-1 if none), output parameter for a buffer (that will not be freed)
+ *                          with the data to write to the the other terminal, output parameter
+ *                          for the number of bytes to write to the other terminal, the function
  *                          shall follow the return semantics of this function
  * @param   winch_callback  This function is called with the hypoterminal changes size,
  *                          it shall follow the return semantics of this function
@@ -212,7 +212,8 @@ int libepiterm_loop(libepiterm_term_t** restrict terms, size_t termn,
 	  if (got == 0)
 	    continue;
 	  try (io_callback(event, buffer, (size_t)got, &fd, &output, &length));
-	  try (uninterrupted_write(fd, output, length));
+	  if (fd >= 0)
+	    try (uninterrupted_write(fd, output, length));
 	}
     }
   
