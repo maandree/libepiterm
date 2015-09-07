@@ -101,7 +101,7 @@ bin/libepiterm.pc: src/libepiterm.pc.in
 	sed -i 's:@INCLUDEDIR@:$(INCLUDEDIR):g' $@
 	sed -i 's:@VERSION@:$(LIB_VERSION):g' $@
 	sed -i 's:@LIBS@:$(EXT_LIBS):g' $@
-	sed -i 's:@CLAGS@:$(EXT_CFLAGS):g' $@
+	sed -i 's:@CFLAGS@:$(EXT_CFLAGS):g' $@
 
 bin/test: bin/test.o
 	@mkdir -p bin
