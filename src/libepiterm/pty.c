@@ -188,7 +188,7 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
   /* The parent only needs the read-end of the channel for the errno code. */
   try (TEMP_FAILURE_RETRY(close(pipe_rw[1])));
   
-  /* Recode the login on utmp. */
+  /* Record the login on utmp. */
   if ((utmp_record = (get_record_name == NULL ? NULL : get_record_name(pty))))
     {
       for (;;)
