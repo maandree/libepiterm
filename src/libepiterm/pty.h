@@ -71,6 +71,16 @@ typedef struct libepiterm_pty
    */
   char* tty;
   
+  /**
+   * Whether an utmp record has been added
+   * for `.master`
+   */
+  int utempted;
+  
+#if LONG_MAX != INT_MAX
+  char __padding1[sizeof(long) - sizeof(int)];
+#endif
+  
 } libepiterm_pty_t;
 
 

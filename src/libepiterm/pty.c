@@ -135,6 +135,7 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
   pty->tty = NULL;
   pty->pid = -1;
   pty->user_data = NULL;
+  pty->utempted = 0;
   
 # pragma GCC diagnostic push
 # pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
@@ -197,6 +198,7 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
 	  if ((r == 0) && (errno == EINTR))
 	    continue;
 	  fail_unless (r);
+	  pty->utempted = 1;
 	  break;
 	}
       free(utmp_record), utmp_record = NULL;
@@ -270,6 +272,8 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
  */
 void libepiterm_pty_close(libepiterm_pty_t* restrict pty)
 {
+  if (pty->utempted)
+    TEMP_FAILURE_RETRY(utempter_remove_record(pty->master)), pty->utempted = 0;
   TEMP_FAILURE_RETRY(close(pty->master)), pty->master = -1;
   TEMP_FAILURE_RETRY(close(pty->slave)),  pty->slave  = -1;
   free(pty->tty), pty->tty = NULL;
