@@ -187,7 +187,7 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
     goto child;
   
   /* The parent only needs the read-end of the channel for the errno code. */
-  try (TEMP_FAILURE_RETRY(close(pipe_rw[1])));
+  close(pipe_rw[1]);
   
   /* Record the login on utmp. */
   if ((utmp_record = (get_record_name == NULL ? NULL : get_record_name(pty))))
@@ -209,7 +209,7 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
   if (got && ((size_t)got < sizeof(int)))
     fail_if ((errno = EPIPE));
   fail_if (got && (errno = saved_errno));
-  try (TEMP_FAILURE_RETRY(close(pipe_rw[0])));
+  close(pipe_rw[0]);
   
   return 0;
  fail:
@@ -230,7 +230,7 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
      device and the write end of the channel for the errno code. */
   for (r = 0, n = getdtablesize(); r < n; r++)
     if ((r != pty->slave) && (r != pipe_rw[1]))
-      TEMP_FAILURE_RETRY(close(r));
+      close(r);
   
   /* Promote to session leader and set controlling TTY. */
   try (setsid());
@@ -240,7 +240,7 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
   if (pty->slave != STDIN_FILENO)
     {
       try (dup2(pty->slave, STDIN_FILENO));
-      try (TEMP_FAILURE_RETRY(close(pty->slave)));
+      close(pty->slave);
     }
   try (dup2(STDIN_FILENO, STDOUT_FILENO));
   try (dup2(STDIN_FILENO, STDERR_FILENO));
@@ -260,7 +260,7 @@ int libepiterm_pty_create(libepiterm_pty_t* restrict pty, int use_path, const ch
  cfail:
   saved_errno = errno;
   uninterrupted_write(pipe_rw[1], &saved_errno, sizeof(int));
-  TEMP_FAILURE_RETRY(close(pipe_rw[1]));
+  close(pipe_rw[1]);
   exit(1);
 }
 
@@ -274,8 +274,8 @@ void libepiterm_pty_close(libepiterm_pty_t* restrict pty)
 {
   if (pty->utempted)
     TEMP_FAILURE_RETRY(utempter_remove_record(pty->master)), pty->utempted = 0;
-  TEMP_FAILURE_RETRY(close(pty->master)), pty->master = -1;
-  TEMP_FAILURE_RETRY(close(pty->slave)),  pty->slave  = -1;
+  close(pty->master), pty->master = -1;
+  close(pty->slave),  pty->slave  = -1;
   free(pty->tty), pty->tty = NULL;
 }
 
