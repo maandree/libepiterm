@@ -1,7 +1,18 @@
-This library provide the basics for creating epiterminals[1].
+NAME
+	libepiterm - A library for creating epiterminals
 
+DESCRIPTION
+	This library provide the basics for creating epiterminals.
 
-[1] Programs like tmux and screen are a type of epiterminals
-    known as terminal multiplexers. Any pseudo-terminal run
-    from inside another terminal is an epiterminals.
+	Programs like tmux(1) and screen(1) are a type of
+	epiterminals known as terminal multiplexers. Any
+	pseudo-terminal run from inside another terminal is an
+	epiterminals.
+
+RATIONALE
+	Creating an epiterminal is very much work. We need
+	a library.
+
+SEE ALSO
+	posix_openpt(3), ptmx(4)
 
